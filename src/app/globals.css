@@ -24,3 +24,24 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Custom responsive breakpoints for carousel */
+@media (min-width: 1200px) {
+  .screen1200\:pb-\[50px\] {
+    padding-bottom: 50px;
+  }
+  .screen1200\:pt-\[25px\] {
+    padding-top: 25px;
+  }
+  .screen1200\:px-6 {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1440px) {
+  .screen1440\:px-6 {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
