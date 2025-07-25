@@ -2,12 +2,19 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useReadContract, useReadContracts } from "wagmi";
-import { formatUnits, type Abi } from "viem";
+import { useReadContract, useReadContracts, useAccount } from "wagmi";
+import { formatUnits, type Abi, createPublicClient, http } from "viem";
 import { abi } from "../contract/abi";
 import { useRouter } from "next/navigation";
+import { liskSepolia } from "viem/chains";
 
 const CONTRACT_ADDRESS = "0x05339e5752689E17a180D7440e61D4191446b4D6";
+
+// Create a public client for non-connected users
+const publicClient = createPublicClient({
+  chain: liskSepolia,
+  transport: http(),
+});
 
 interface MarketDetails {
   question: string;
@@ -32,24 +39,21 @@ export const MarketListReal = () => {
   const [marketIds, setMarketIds] = useState<number[]>([]);
   const [selectedMarketId, setSelectedMarketId] = useState<number | null>(null);
   const [showPlaceBet, setShowPlaceBet] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const { isConnected } = useAccount();
 
-  // Get total market count
+  // Get total market count using wagmi hooks when connected
   const { data: marketCount, isLoading: isLoadingCount } = useReadContract({
     address: CONTRACT_ADDRESS as `0x${string}`,
     abi: abi as Abi,
     functionName: "marketCount",
+    query: {
+      enabled: isConnected,
+    },
   });
 
-  // Create market IDs list when marketCount is available
-  useEffect(() => {
-    if (marketCount && Number(marketCount) > 0) {
-      const ids = Array.from({ length: Number(marketCount) }, (_, i) => i + 1);
-      setMarketIds(ids);
-    }
-  }, [marketCount]);
-
-  // Get details of all markets at once
+  // Get details of all markets at once using wagmi when connected
   const { data: marketsData, isLoading: isLoadingMarkets } = useReadContracts({
     contracts: marketIds.map((id) => ({
       address: CONTRACT_ADDRESS as `0x${string}`,
@@ -58,13 +62,71 @@ export const MarketListReal = () => {
       args: [BigInt(id)],
     })),
     query: {
-      enabled: marketIds.length > 0,
+      enabled: marketIds.length > 0 && isConnected,
     },
   });
 
-  // Process data when results are available
+  // Fallback for fetching market data when wallet is not connected
+  const fetchMarketsWithoutWallet = async () => {
+    try {
+      setIsLoading(true);
+
+      // Get market count
+      const count = await publicClient.readContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: abi as Abi,
+        functionName: "marketCount",
+      });
+
+      if (count && Number(count) > 0) {
+        const ids = Array.from({ length: Number(count) }, (_, i) => i + 1);
+        setMarketIds(ids);
+
+        // Fetch details for each market
+        const marketPromises = ids.map((id) =>
+          publicClient.readContract({
+            address: CONTRACT_ADDRESS as `0x${string}`,
+            abi: abi as Abi,
+            functionName: "getMarketDetails",
+            args: [BigInt(id)],
+          })
+        );
+
+        const results = await Promise.all(marketPromises);
+
+        const processedMarkets: Market[] = results.map((result, index) => ({
+          id: ids[index],
+          details: result as unknown as MarketDetails,
+        }));
+
+        setMarkets(processedMarkets);
+      }
+
+      setIsLoading(false);
+    } catch (error) {
+      console.error("Error fetching markets without wallet:", error);
+      setIsLoading(false);
+    }
+  };
+
+  // Load data based on connection status
   useEffect(() => {
-    if (marketsData && marketIds.length > 0) {
+    if (!isConnected) {
+      fetchMarketsWithoutWallet();
+    }
+  }, [isConnected]);
+
+  // Create market IDs list when marketCount is available via wagmi
+  useEffect(() => {
+    if (isConnected && marketCount && Number(marketCount) > 0) {
+      const ids = Array.from({ length: Number(marketCount) }, (_, i) => i + 1);
+      setMarketIds(ids);
+    }
+  }, [marketCount, isConnected]);
+
+  // Process data when results are available via wagmi
+  useEffect(() => {
+    if (isConnected && marketsData && marketIds.length > 0) {
       const processedMarkets: Market[] = [];
 
       marketsData.forEach((result, index) => {
@@ -78,8 +140,10 @@ export const MarketListReal = () => {
       });
 
       setMarkets(processedMarkets);
+      setIsLoading(false);
     }
-  }, [marketsData, marketIds]);
+  }, [marketsData, marketIds, isConnected]);
+
   const getMarketStatus = (market: Market) => {
     const now = Date.now() / 1000;
     const endTime = Number(market.details.endTime);
@@ -111,9 +175,7 @@ export const MarketListReal = () => {
     };
   };
 
-  const isLoading = isLoadingCount || isLoadingMarkets;
-
-  if (isLoading) {
+  if (isLoading || (isConnected && (isLoadingCount || isLoadingMarkets))) {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -170,7 +232,7 @@ export const MarketListReal = () => {
           return (
             <div
               key={market.id}
-              className="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-all duration-200 border border-gray-200 p-4 h-[240px] flex flex-col cursor-pointer"
+              className="bg-white rounded-md shadow-sm hover:shadow-lg transition-all duration-200 border border-gray-200 p-4 h-[180px] flex flex-col cursor-pointer"
               onClick={() => router.push(`/market/${market.id}`)}
             >
               {/* Header with Avatar and Percentage */}
@@ -200,7 +262,7 @@ export const MarketListReal = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className="space-y-2 mb-3">
+              <div className="flex item-center justify-between space-x-2 mb-3">
                 {!market.details.resolved && !market.details.canceled ? (
                   <>
                     <button

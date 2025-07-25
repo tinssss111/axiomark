@@ -1,9 +1,23 @@
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useState } from "react";
-import { usePublicClient } from "wagmi";
-import { formatUnits, decodeEventLog, Abi, parseAbiItem } from "viem";
+import { usePublicClient, useAccount } from "wagmi";
+import {
+  formatUnits,
+  decodeEventLog,
+  Abi,
+  parseAbiItem,
+  createPublicClient,
+  http,
+} from "viem";
 import { abi } from "../contract/abi";
 import Blockies from "react-blockies";
+import { liskSepolia } from "viem/chains";
+
+// Create a public client for non-connected users
+const fallbackClient = createPublicClient({
+  chain: liskSepolia,
+  transport: http(),
+});
 
 interface BettingHistoryProps {
   marketId: string;
@@ -35,6 +49,7 @@ const BettingHistory = ({ marketId, contractAddress }: BettingHistoryProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("holders");
   const publicClient = usePublicClient();
+  const { isConnected } = useAccount();
 
   // Format wallet addresses for display (0x1234...5678)
   const formatAddress = (address: string) => {
@@ -51,11 +66,9 @@ const BettingHistory = ({ marketId, contractAddress }: BettingHistoryProps) => {
 
   useEffect(() => {
     const fetchBettingHistory = async () => {
-      // If publicClient is not available, exit early
-      if (!publicClient) {
-        setIsLoading(false);
-        return;
-      }
+      // Choose the appropriate client based on connection status
+      const client =
+        isConnected && publicClient ? publicClient : fallbackClient;
 
       try {
         setIsLoading(true);
@@ -66,7 +79,7 @@ const BettingHistory = ({ marketId, contractAddress }: BettingHistoryProps) => {
         );
 
         // Get logs from the contract
-        const logs = await publicClient.getLogs({
+        const logs = await client.getLogs({
           address: contractAddress as `0x${string}`,
           event: betPlacedEvent,
           fromBlock: BigInt(0),
@@ -87,7 +100,7 @@ const BettingHistory = ({ marketId, contractAddress }: BettingHistoryProps) => {
             });
 
             // Get the block for timestamp
-            const block = await publicClient.getBlock({
+            const block = await client.getBlock({
               blockHash: log.blockHash,
             });
 
@@ -118,7 +131,7 @@ const BettingHistory = ({ marketId, contractAddress }: BettingHistoryProps) => {
     if (marketId && contractAddress) {
       fetchBettingHistory();
     }
-  }, [marketId, contractAddress, publicClient]);
+  }, [marketId, contractAddress, publicClient, isConnected]);
 
   // Calculate analytics data
   const yesBets = bets.filter((bet) => bet.isYes);

@@ -1,5 +1,6 @@
 import { Chain } from "@rainbow-me/rainbowkit";
 
+
 export const sagaMixtixChain = {
     id: 2747408668452000,
     name: 'AxioMark',
@@ -41,3 +42,4 @@ export const lisk = {
     },
     iconUrl: 'https://s3-alpha.figma.com/hub/file/2178439403/ccf7984e-fce7-42ff-ad57-4b5577f2899d-cover.png',
 } as const satisfies Chain;
+

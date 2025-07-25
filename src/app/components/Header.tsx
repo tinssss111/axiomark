@@ -67,7 +67,7 @@ export const Header = () => {
             onClick={() => setShowHowItWorksModal(true)}
             className="text-blue-400 hover:text-blue-300 transition-colors font-bold"
           >
-            How It Works !
+            How It Works
           </button>
           <HowItWorksModal
             isOpen={showHowItWorksModal}

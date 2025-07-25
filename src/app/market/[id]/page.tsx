@@ -2,16 +2,23 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useReadContract, useAccount } from "wagmi";
-import { formatUnits, type Abi } from "viem";
+import { formatUnits, type Abi, createPublicClient, http } from "viem";
 import { abi } from "../../contract/abi";
 import { Header } from "../../components/Header";
 import PlaceBet from "../../components/PlaceBet";
 import BettingHistory from "../../components/BettingHistory";
+import { liskSepolia } from "viem/chains";
 
 const CONTRACT_ADDRESS = "0x05339e5752689E17a180D7440e61D4191446b4D6";
+
+// Create a public client for non-connected users
+const publicClient = createPublicClient({
+  chain: liskSepolia,
+  transport: http(),
+});
 
 interface MarketDetails {
   question: string;
@@ -37,15 +44,24 @@ interface PricePoint {
 export default function MarketDetail() {
   const params = useParams();
   const router = useRouter();
-  const { address } = useAccount();
+  const { address, isConnected } = useAccount();
   const marketId = params.id as string;
   const [isTimelineOpen, setIsTimelineOpen] = useState(true);
+  const [market, setMarket] = useState<MarketDetails | null>(null);
+  const [userBetData, setUserBetData] = useState<UserBets | null>(null);
+  const [priceHistory, setPriceHistory] = useState<PricePoint[]>([]);
+  const [winningRatios, setWinningRatios] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Fetch market data using wagmi when connected
   const { data: marketData, isLoading: isLoadingMarket } = useReadContract({
     address: CONTRACT_ADDRESS as `0x${string}`,
     abi: abi as Abi,
     functionName: "getMarketDetails",
     args: [BigInt(marketId)],
+    query: {
+      enabled: isConnected,
+    },
   });
 
   const { data: userBets } = useReadContract({
@@ -53,37 +69,125 @@ export default function MarketDetail() {
     abi: abi as Abi,
     functionName: "getUserBets",
     args: address ? [BigInt(marketId), address] : undefined,
-    query: { enabled: !!address },
+    query: { enabled: !!address && isConnected },
   });
 
-  const { data: winningRatios } = useReadContract({
+  const { data: winningRatiosData } = useReadContract({
     address: CONTRACT_ADDRESS as `0x${string}`,
     abi: abi as Abi,
     functionName: "getWinningRatios",
     args: [BigInt(marketId)],
-  });
-
-  // Fetch market price history data
-  const { data: priceHistory } = useReadContract({
-    address: CONTRACT_ADDRESS as `0x${string}`,
-    abi: abi as Abi,
-    functionName: "getMarketPriceHistory",
-    args: [BigInt(marketId)],
     query: {
-      select: (data: any) => {
-        // Convert raw contract data to PricePoint array
-        if (!data || !Array.isArray(data)) return [];
-
-        return data.map((point: any) => ({
-          timestamp: point.timestamp || BigInt(0),
-          price: Number(point.price || 0) / 100, // Assuming contract returns 0-10000 representing 0-100%
-        }));
-      },
+      enabled: isConnected,
     },
   });
 
-  const market = marketData as MarketDetails;
-  const userBetData = userBets as UserBets;
+  // Generate mock price history data based on market details
+  const generateMockPriceHistory = (
+    marketDetails: MarketDetails
+  ): PricePoint[] => {
+    if (!marketDetails) return [];
+
+    // Use market creation time (approximate as one week before end time)
+    const endTimeMs = Number(marketDetails.endTime);
+    const startTimeMs = endTimeMs - 7 * 24 * 60 * 60; // One week before end time
+    const now = Math.floor(Date.now() / 1000);
+
+    // Create 10 data points
+    const points: PricePoint[] = [];
+
+    // Calculate current yes percentage
+    const totalPool = Number(marketDetails.totalPool);
+    const currentYesPerc =
+      totalPool > 0 ? Number(marketDetails.totalYesBets) / totalPool : 0.5; // Default to 50% if no bets
+
+    // Create history with slight randomness, ending at current percentage
+    const numPoints = 10;
+    for (let i = 0; i < numPoints; i++) {
+      const timePoint = BigInt(
+        startTimeMs + ((endTimeMs - startTimeMs) * i) / numPoints
+      );
+
+      // Start around 50%, then gradually move toward current percentage with some randomness
+      const randomFactor = Math.random() * 0.1 - 0.05; // +/- 5%
+      const progress = i / (numPoints - 1);
+      const basePerc = 0.5 * (1 - progress) + currentYesPerc * progress;
+      const price = Math.max(0.05, Math.min(0.95, basePerc + randomFactor));
+
+      points.push({
+        timestamp: timePoint,
+        price: price,
+      });
+    }
+
+    return points;
+  };
+
+  // Fallback for fetching market data when wallet is not connected
+  const fetchMarketWithoutWallet = async () => {
+    try {
+      setIsLoading(true);
+
+      // Get market details
+      const marketDetails = await publicClient.readContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: abi as Abi,
+        functionName: "getMarketDetails",
+        args: [BigInt(marketId)],
+      });
+
+      const typedMarketDetails = marketDetails as unknown as MarketDetails;
+      setMarket(typedMarketDetails);
+
+      // Get winning ratios
+      const ratios = await publicClient.readContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: abi as Abi,
+        functionName: "getWinningRatios",
+        args: [BigInt(marketId)],
+      });
+
+      setWinningRatios(ratios);
+
+      // Generate mock price history data since the contract doesn't have this function
+      const mockHistory = generateMockPriceHistory(typedMarketDetails);
+      setPriceHistory(mockHistory);
+
+      setIsLoading(false);
+    } catch (error) {
+      console.error("Error fetching market without wallet:", error);
+      setIsLoading(false);
+    }
+  };
+
+  // Load data based on connection status
+  useEffect(() => {
+    if (!isConnected) {
+      fetchMarketWithoutWallet();
+    }
+  }, [isConnected, marketId]);
+
+  // Update state when data is loaded via wagmi
+  useEffect(() => {
+    if (isConnected) {
+      if (marketData) {
+        const typedMarketDetails = marketData as MarketDetails;
+        setMarket(typedMarketDetails);
+
+        // Generate mock price history data since the contract doesn't have this function
+        const mockHistory = generateMockPriceHistory(typedMarketDetails);
+        setPriceHistory(mockHistory);
+
+        setIsLoading(false);
+      }
+      if (userBets) {
+        setUserBetData(userBets as UserBets);
+      }
+      if (winningRatiosData) {
+        setWinningRatios(winningRatiosData);
+      }
+    }
+  }, [marketData, userBets, winningRatiosData, isConnected]);
 
   // Calculate timeline dates
   const endTimeSeconds = market?.endTime ? Number(market.endTime) : 0;
@@ -94,6 +198,7 @@ export default function MarketDetail() {
     ? BigInt(endTimeSeconds + 24 * 60 * 60)
     : BigInt(0);
 
+  // Market status function
   const getMarketStatus = () => {
     if (!market) return { text: "Loading...", color: "text-gray-500" };
 
@@ -190,7 +295,7 @@ export default function MarketDetail() {
 
   const priceChange = calculatePriceChange();
 
-  if (isLoadingMarket) {
+  if (isLoading || (isConnected && isLoadingMarket)) {
     return (
       <div className="min-h-screen bg-white">
         <Header />
