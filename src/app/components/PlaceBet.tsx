@@ -10,10 +10,10 @@ import {
 import { abi } from "../contract/abi";
 import { approval } from "../contract/approval";
 import { parseUnits } from "viem";
-import ApprovalModal from "./ApprovalModal";
+import HowItWorksModal from "./HowItWorksModal";
 
-const CONTRACT_ADDRESS = "0x69113555Fb6df34167ea33eeD1db9eEd265a6127";
-const USDC_CONTRACT_ADDRESS = "0xB7954A5343c4EE121e61409c19B013724a25f95B";
+const CONTRACT_ADDRESS = "0x05339e5752689E17a180D7440e61D4191446b4D6";
+const USDC_CONTRACT_ADDRESS = "0x0E82fDDAd51cc3ac12b69761C45bBCB9A2Bf3C83";
 
 interface PlaceBetProps {
   marketId: number;
@@ -25,7 +25,7 @@ export default function PlaceBet({ marketId, onClose }: PlaceBetProps) {
   const [selectedSide, setSelectedSide] = useState<"yes" | "no">("yes");
   const [amount, setAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [showHowItWorksModal, setShowHowItWorksModal] = useState(false);
 
   const { writeContract, data: hash, error, isPending } = useWriteContract();
 
@@ -48,9 +48,7 @@ export default function PlaceBet({ marketId, onClose }: PlaceBetProps) {
       address: USDC_CONTRACT_ADDRESS as `0x${string}`,
       abi: approval,
       functionName: "allowance",
-      args: address
-        ? [address, CONTRACT_ADDRESS as `0x${string}`]
-        : undefined,
+      args: address ? [address, CONTRACT_ADDRESS as `0x${string}`] : undefined,
     }
   );
 
@@ -66,35 +64,16 @@ export default function PlaceBet({ marketId, onClose }: PlaceBetProps) {
     }
   };
 
-  const checkAllowanceAndPlaceBet = async () => {
-    if (!amount || parseFloat(amount) <= 0) {
-      return;
-    }
-
-    const amountInWei = parseUnits(amount, 6);
-    
-    // Check if allowance is sufficient
-    if (!currentAllowance || Number(currentAllowance) < Number(amountInWei)) {
-      setShowApprovalModal(true);
-      return;
-    }
-
-    // If allowance is sufficient, place bet directly
-    placeBet();
-  };
-
   const placeBet = async () => {
-    if (!amount || parseFloat(amount) <= 0) {
-      return;
-    }
+    if (!amount || parseFloat(amount) <= 0) return;
 
     try {
       setIsProcessing(true);
-      const amountInWei = parseUnits(amount, 6);
+      const amountInWei = parseUnits(amount, 6); // USDC has 6 decimals
       const isYesBet = selectedSide === "yes";
 
       writeContract({
-        address: CONTRACT_ADDRESS as `0x${string}`,
+        address: CONTRACT_ADDRESS,
         abi,
         functionName: "placeBet",
         args: [BigInt(marketId), isYesBet, amountInWei],
@@ -106,12 +85,8 @@ export default function PlaceBet({ marketId, onClose }: PlaceBetProps) {
   };
 
   const handleApprovalSuccess = () => {
-    setShowApprovalModal(false);
     refetchAllowance();
-    // After approval, place bet automatically
-    setTimeout(() => {
-      placeBet();
-    }, 1000);
+    setShowHowItWorksModal(false);
   };
 
   useEffect(() => {
@@ -184,9 +159,12 @@ export default function PlaceBet({ marketId, onClose }: PlaceBetProps) {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-bold">Your Prediction</h2>
-        <span className="text-gray-400">
-          Balance: {userBalance.toFixed(0)} USDC
-        </span>
+        <button
+          onClick={() => setShowHowItWorksModal(true)}
+          className="text-lime-400 hover:text-lime-300 transition-colors text-sm font-medium"
+        >
+          How It Works
+        </button>
       </div>
 
       {/* Yes/No Selection */}
@@ -285,7 +263,7 @@ export default function PlaceBet({ marketId, onClose }: PlaceBetProps) {
 
       {/* Place Order Button */}
       <button
-        onClick={checkAllowanceAndPlaceBet}
+        onClick={placeBet}
         disabled={
           !amount ||
           parseFloat(amount) <= 0 ||
@@ -313,12 +291,11 @@ export default function PlaceBet({ marketId, onClose }: PlaceBetProps) {
         )}
       </button>
 
-      {/* Approval Modal */}
-      <ApprovalModal
-        isOpen={showApprovalModal}
-        onClose={() => setShowApprovalModal(false)}
+      {/* How It Works Modal */}
+      <HowItWorksModal
+        isOpen={showHowItWorksModal}
+        onClose={() => setShowHowItWorksModal(false)}
         onApprovalSuccess={handleApprovalSuccess}
-        requiredAmount={amount}
       />
 
       {/* Close Button */}

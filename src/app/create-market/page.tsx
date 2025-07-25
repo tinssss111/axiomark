@@ -5,7 +5,7 @@ import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { Header } from "../components/Header";
 import { abi } from "../contract/abi";
 
-const CONTRACT_ADDRESS = "0x69113555Fb6df34167ea33eeD1db9eEd265a6127";
+const CONTRACT_ADDRESS = "0x05339e5752689E17a180D7440e61D4191446b4D6";
 
 export default function CreateMarket() {
   const [formData, setFormData] = useState({

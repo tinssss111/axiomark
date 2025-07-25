@@ -10,8 +10,8 @@ import {
 import { approval } from "../contract/approval";
 import { parseUnits, formatUnits } from "viem";
 
-const USDC_CONTRACT_ADDRESS = "0x0E82fDDAd51cc3ac12b69761C45bBCB9A2Bf3C83";
-const PREDICTION_MARKET_ADDRESS = "0x69113555Fb6df34167ea33eeD1db9eEd265a6127";
+const USDC_CONTRACT_ADDRESS = "0xb3bB7B57333d169517F5B84F4067E308d5B6324e";
+const PREDICTION_MARKET_ADDRESS = "0x05339e5752689E17a180D7440e61D4191446b4D6";
 
 interface TokenApprovalProps {
   amount: string;

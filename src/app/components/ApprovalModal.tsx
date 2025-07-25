@@ -10,8 +10,8 @@ import {
 import { approval } from "../contract/approval";
 import { parseUnits, formatUnits } from "viem";
 
-const USDC_CONTRACT_ADDRESS = "0xB7954A5343c4EE121e61409c19B013724a25f95B";
-const PREDICTION_MARKET_ADDRESS = "0x69113555Fb6df34167ea33eeD1db9eEd265a6127";
+const USDC_CONTRACT_ADDRESS = "0x0E82fDDAd51cc3ac12b69761C45bBCB9A2Bf3C83";
+const PREDICTION_MARKET_ADDRESS = "0x05339e5752689E17a180D7440e61D4191446b4D6";
 
 interface ApprovalModalProps {
   isOpen: boolean;
@@ -170,7 +170,9 @@ export default function ApprovalModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Cho phép sử dụng USDC</h2>
+          <h2 className="text-xl font-bold text-gray-900">
+            Cho phép sử dụng USDC
+          </h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -197,8 +199,8 @@ export default function ApprovalModal({
               🔒 Bảo mật cần thiết
             </h4>
             <p className="text-sm text-blue-800">
-              Bạn cần cho phép smart contract sử dụng USDC của bạn để có thể đặt cược. 
-              Đây là bước bảo mật tiêu chuẩn trong DeFi.
+              Bạn cần cho phép smart contract sử dụng USDC của bạn để có thể đặt
+              cược. Đây là bước bảo mật tiêu chuẩn trong DeFi.
             </p>
           </div>
         </div>
@@ -243,7 +245,8 @@ export default function ApprovalModal({
           {hasInsufficientBalance() && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-3">
               <p className="text-red-600 text-sm">
-                ⚠️ Số dư USDC không đủ. Bạn cần có ít nhất {approvalAmount} USDC.
+                ⚠️ Số dư USDC không đủ. Bạn cần có ít nhất {approvalAmount}{" "}
+                USDC.
               </p>
             </div>
           )}
