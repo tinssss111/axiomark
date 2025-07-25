@@ -1,11 +1,13 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
+import HowItWorksModal from "./HowItWorksModal";
 
 export const Header = () => {
+  const [showHowItWorksModal, setShowHowItWorksModal] = useState(false);
   return (
     <header className="bg-white text-gray-900 container mx-auto py-4">
       <div className="flex items-center justify-between max-w-7xl mx-auto">
@@ -59,20 +61,18 @@ export const Header = () => {
             href="#"
             className="text-gray-500 hover:text-gray-900 transition-colors"
           >
-            Earn
-          </a>
-          <a
-            href="#"
-            className="text-gray-500 hover:text-gray-900 transition-colors"
-          >
             Leaderboard
           </a>
-          <a
-            href="#"
-            className="text-gray-500 hover:text-gray-900 transition-colors"
+          <button
+            onClick={() => setShowHowItWorksModal(true)}
+            className="text-blue-400 hover:text-blue-300 transition-colors font-bold"
           >
-            News
-          </a>
+            How It Works !
+          </button>
+          <HowItWorksModal
+            isOpen={showHowItWorksModal}
+            onClose={() => setShowHowItWorksModal(false)}
+          />
         </nav>
 
         <div className="ml-8">

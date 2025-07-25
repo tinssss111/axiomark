@@ -5,7 +5,6 @@ import React, { useState, useEffect } from "react";
 import { useReadContract, useReadContracts } from "wagmi";
 import { formatUnits, type Abi } from "viem";
 import { abi } from "../contract/abi";
-import PlaceBet from "./PlaceBet";
 import { useRouter } from "next/navigation";
 
 const CONTRACT_ADDRESS = "0x05339e5752689E17a180D7440e61D4191446b4D6";
