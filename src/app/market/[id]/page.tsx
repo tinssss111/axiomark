@@ -9,6 +9,7 @@ import { formatUnits, type Abi } from "viem";
 import { abi } from "../../contract/abi";
 import { Header } from "../../components/Header";
 import PlaceBet from "../../components/PlaceBet";
+import BettingHistory from "../../components/BettingHistory";
 
 const CONTRACT_ADDRESS = "0x05339e5752689E17a180D7440e61D4191446b4D6";
 
@@ -430,6 +431,12 @@ export default function MarketDetail() {
               </div>
             </div>
           </div>
+
+          {/* Add Betting History Component */}
+          <BettingHistory
+            marketId={marketId}
+            contractAddress={CONTRACT_ADDRESS}
+          />
         </div>
         <div className="w-1/3">
           {" "}
